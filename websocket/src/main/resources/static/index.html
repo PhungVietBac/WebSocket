@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Spring Boot WebSocket</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load SockJS and STOMP.js for WebSocket communication -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script type="text/javascript">
+      let stompClient = null;
+
+      function setConnected(connected) {
+        document.getElementById("connect").disabled = connected;
+        document.getElementById("disconnect").disabled = !connected;
+        document.getElementById("conversation").style.display = connected
+          ? "block"
+          : "none";
+        document.getElementById("greetings").innerHTML = ""; // Clear log on connect/disconnect
+      }
+
+      function connect() {
+        // Create a new SockJS connection to our STOMP endpoint
+        const socket = new SockJS("/gs-guide-websocket");
+        // Create a STOMP client over the SockJS connection
+        stompClient = Stomp.over(socket);
+
+        // Connect the STOMP client
+        stompClient.connect({}, function (frame) {
+          setConnected(true);
+          console.log("Connected: " + frame);
+
+          // Subscribe to the /topic/greetings topic
+          stompClient.subscribe("/topic/greetings", function (greeting) {
+            // When a greeting is received, show it in the list
+            showGreeting(JSON.parse(greeting.body).content);
+          });
+        });
+      }
+
+      function disconnect() {
+        if (stompClient !== null) {
+          stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+      }
+
+      function sendName() {
+        const name = document.getElementById("name").value;
+        // Send a message to the /app/hello destination
+        stompClient.send("/app/hello", {}, JSON.stringify({ name: name }));
+      }
+
+      function showGreeting(message) {
+        const greetings = document.getElementById("greetings");
+        const newRow = greetings.insertRow(0); // Add to the top
+        const newCell = newRow.insertCell(0);
+        newCell.className = "px-4 py-2 border-b";
+        newCell.appendChild(document.createTextNode(message));
+      }
+
+      // Add listeners when the DOM is loaded
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("connect").addEventListener("click", connect);
+        document
+          .getElementById("disconnect")
+          .addEventListener("click", disconnect);
+        document.getElementById("send").addEventListener("click", sendName);
+        setConnected(false); // Initial state
+      });
+    </script>
+  </head>
+  <body
+    class="bg-gray-100 font-sans p-8 min-h-screen flex items-center justify-center"
+  >
+    <div class="w-full max-w-2xl bg-white shadow-lg rounded-lg p-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">
+        Spring WebSocket "Hello, World!"
+      </h1>
+
+      <!-- Connection Controls -->
+      <div class="flex space-x-4 mb-6">
+        <button
+          id="connect"
+          class="flex-1 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Connect
+        </button>
+        <button
+          id="disconnect"
+          class="flex-1 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Disconnect
+        </button>
+      </div>
+
+      <!-- Conversation Area -->
+      <div id="conversation" style="display: none">
+        <!-- Send Message Form -->
+        <div class="flex space-x-4 mb-6">
+          <input
+            type="text"
+            id="name"
+            class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="What is your name?"
+          />
+          <button
+            id="send"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
+          >
+            Send
+          </button>
+        </div>
+
+        <!-- Greetings Table -->
+        <table class="w-full min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Received Greetings
+              </th>
+            </tr>
+          </thead>
+          <tbody id="greetings" class="bg-white divide-y divide-gray-200">
+            <!-- Greetings will be inserted here by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
